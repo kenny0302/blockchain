@@ -1,0 +1,54 @@
+####################################################################
+###                SOLO多主機部署網路結構                        ###
+###  management-node:120.125.83.48        (hsu01/data@s204-im)   ###
+###  orderer.example.com:120.125.83.48    (hsu01/data@s204-im)   ###
+###  peer0.org1.example.com:120.125.83.56 (hsu02/data@s204-im)   ###
+###  peer1.org1.example.com:120.125.82.1  (mike2/mike@s201-1)    ###
+###  peer0.org2.example.com:120.125.83.43 (hsu03/data@s204-im)   ###
+###  peer1.org2.example.com:120.125.82.6  (chiu/chiu@s201-1)     ###
+####################################################################
+
+// Node: orderer.example.com:120.125.83.48
+// VERSION: Hyperledger Fabric v1.3.0
+// Channel name: mychannel
+// Chaincode: ~/fabric-samples/chaincode/chaincode_example02
+// CouchDB: v0.4.13
+
+
+#############################################################
+### <<<結束區塊鏈網路或清除前次操作資料請使用下列指令>>> ####
+### 清除前次操作的containers, images, networks, volumes  ####
+#############################################################
+
+$ docker rm -f $(docker ps -a -q)
+$ docker rmi -f $(docker images -a -q dev*)
+$ docker network prune
+$ docker volume prune
+
+
+##########################################
+### Setting up environmental valiables ###
+### 設置環境變數                       ###
+##########################################
+
+$ cd ~/fabric-proj/dltlab/
+$ export FABRIC_CFG_PATH=${PWD}
+$ export CHANNEL_NAME=mychannel
+
+
+#######################################
+###        啟動Orderer節點          ###
+#######################################
+
+$ docker-compose -f docker-orderer.yaml up -d
+
+// 確認 orderer.example.com 容器已啟動
+$ docker ps
+
+
+#######################################
+###   下一步：啟動peer節點          ###
+#######################################
+
+// (1) 使用PuTTY連線至"peer0.org1.example.com:120.125.83.56 (hsu02/data@s204-im)"
+// (2) 根據 SMH3-peer0-org1.txt 的步驟完成peer節點的啟動

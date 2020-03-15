@@ -1,0 +1,159 @@
+更新日期：2018-10-05
+
+######################################
+### MS Windows作業系統上的軟體安裝 ###
+######################################
+
+// 建議將舊版軟體移除後再安裝新版軟體
+// 請根據下列順序安裝
+
+1. Oracle VM VirtualBox (v5.2.18)  
+	https://www.virtualbox.org/wiki/Downloads
+
+2. Ubuntu (v18.04.1 LTS)  
+	https://www.ubuntu-tw.org/modules/tinyd0/
+
+3. WinSCP (v5.13.4)  
+	https://winscp.net/eng/download.php
+
+4. PuTTY (v0.70)  
+	https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html
+
+5. Notepad++ (v7.5.8)  
+	https://notepad-plus-plus.org/zh/
+
+6. Git (v2.19.0) 
+	https://git-scm.com/downloads
+	
+	(1) 到官網下載並安裝Git
+	(2) 開啟終端機(cmd.exe或PowerShell)並執行下列指令
+		$ git config --global core.autocrlf false
+		$ git config --global core.longpaths true
+
+7. Windows SDK  
+	https://developer.microsoft.com/zh-tw/windows/downloads/windows-10-sdk
+	
+8. Golang (v1.11.1)  
+	https://golang.org/dl/
+   
+	(1) 到官網下載Golang並將它安裝在"C:\Go"資料夾中
+	(2) 建立GOPATH的資料夾：
+		<%USERPROFILE%\Go>    (例如： C:\Users\Jeffrey\Go)
+	(3) 設定環境變數： 
+		* GOROOT=<Golang installation path>    (例如： GOROOT=C:\Go)
+		* GOPATH=<%USERPROFILE%\Go>       (例如： C:\Users\Jeffrey\Go)
+		* GOBIN=<%USERPROFILE%\Go\bin>    (例如： C:\Users\Jeffrey\Go\bin)
+		* 將GOROOT、GOROOT\bin、GOPATH、GOBIN加入環境變數PATH中
+	(4) 開啟終端機(cmd.exe或PowerShell)並執行下列指令測試安裝是否成功：
+		$ go env
+		(查看GOROOT, GOPATH, GOBIN設定是否正確)
+   
+9. Node.js (v8.12.0 LTS)  
+	https://nodejs.org/en/
+	// 目前Hyperledger Fabric不支援Node.js v9.x.x版本
+	
+	(1) 到官網下載並安裝Node.js
+	(2) 開啟終端機(cmd.exe或PowerShell)並執行下列指令測試安裝是否成功：
+		$ node -v
+		$ npm -v
+		(查看node與npm版本)
+
+10. Visual Studio Code (v1.27.2)  
+	https://code.visualstudio.com/Download
+	
+	(1) 到官網下載並安裝Visual Studio Code
+	(2) 擴充功能 --> Go 0.6.90
+	(3) Ctrl+Shift+P --> Go: Install/Update Tools
+
+11. node-gyp & node-pre-gyp (Node.js native addon build tool)
+	https://www.npmjs.com/package/node-gyp
+	https://www.npmjs.com/package/node-pre-gyp
+	
+	(1) 以「系統管理員」身分執行PowerShell或cmd.exe
+		(例如：以滑鼠左鍵點選PowerShell或cmd.exe，接著再按滑鼠右鍵選擇以系統管理員身分執行)
+	(2) 在PowerShell或cmd中執行下列指令
+		$ npm install npm@latest -g
+		$ npm install -g node-gyp
+		$ npm install node-pre-gyp -g
+
+12. Visual Studio C++ Build Tools for Node.js  
+	https://www.npmjs.com/package/windows-build-tools
+	
+	(1) 以「系統管理員」身分執行PowerShell或cmd.exe
+		(例如：以滑鼠左鍵點選PowerShell或cmd.exe，接著再按滑鼠右鍵選擇以系統管理員身分執行)
+	(2) 在PowerShell或cmd中執行下列指令
+		$ npm install npm@latest -g
+		$ npm install --global --production windows-build-tools
+
+13. NPM GRPC module for Node.js
+	開啟終端機(cmd.exe或PowerShell)並執行下列指令：
+	$ npm install npm@latest -g
+	$ npm install --global grpc
+
+14. Hyperledger Fabric SDK for Node.js  https://fabric-sdk-node.github.io/
+	開啟終端機(cmd.exe或PowerShell)，並在新建立的Node.js專案目錄中執行下列指令：
+	
+	$ npm install npm@latest -g
+	$ npm init -y
+	$ npm install fabric-client --save
+	$ npm install fabric-ca-client --save
+
+15. Chaincode API for Golang
+	方式一：Visual Studio Code: Ctrl+` --> 終端機 --> 輸入下列指令
+	方式二：開啟終端機(cmd.exe或PowerShell)並執行下列指令
+	
+	$ go get -u --tags nopkcs11 github.com/hyperledger/fabric/core/chaincode/shim
+	$ go get -u --tags nopkcs11 github.com/hyperledger/fabric/protos/peer
+
+##############
+## Optional ##
+##############
+
+
+16. Microsoft .NET Core SDK (v2.1.300)  
+	https://www.microsoft.com/net/download/windows
+	
+17. Visual Studio 
+	(如果出現找不到CL.exe的錯誤訊息時，就需要安裝Visual Studio，因為CL.exe是Visual Studio的編譯程式)
+	安裝完Microsoft Visual Studio之後，就可以在C:\Program Files (x86)\Microsoft Visual Studio 14.0\bin CL.exe 
+	https://www.visualstudio.com/zh-hant/vs/
+
+// 暫不安裝
+*18. GCC(GNU Compiler Collection) 
+	https://sourceforge.net/projects/mingw-w64/?source=typ_redirect
+
+// 暫不安裝
+*19. Cygwin
+    https://cygwin.com/install.html
+	https://stackoverflow.com/questions/24466246/how-can-i-install-libtoolize-in-cygwin
+	
+
+#####################
+## VS Code擴充功能 ##
+#####################
+
+20. Node.js Modules Intellisense
+
+21. Node.js Extension Pack
+
+22. Code Spell Checker
+
+23. npm Intellisense
+
+// 下列項目前不建議安裝
+24. TSLint
+	(1) 開啟終端機(cmd.exe或PowerShell)並執行下列指令：
+		$ npm install -g tslint typescript
+	(2) VS Code: 擴充功能(Ctrl+Shift+X) --> tslint (安裝)
+	
+25. ESLint
+	(1) 開啟終端機(cmd.exe或PowerShell)並執行下列指令：
+		$ npm install -g eslint
+	(2) VS Code: 擴充功能(Ctrl+Shift+X) --> eslint (安裝)
+	
+26. JSHint (目前不建議安裝)
+	(1) 開啟終端機(cmd.exe或PowerShell)並執行下列指令：
+		$ npm install -g jshint
+	(2) VS Code: 擴充功能(Ctrl+Shift+X) --> jshint (安裝)
+	
+

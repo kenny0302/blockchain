@@ -1,0 +1,490 @@
+# VERSION: Hyperledger Fabric v1.3.0
+# Building Your First Network
+# https://github.com/hyperledger/fabric/blob/master/docs/source/build_network.rst
+
+################################
+###  以逐步方式執行網路建立  ###
+################################
+
+# 以下為 "./byfn.sh generate" 的逐步執行
+# Channel name : mychannel
+
+################################
+###     準備相關配置文件     ###
+################################
+
+
+##########################################
+### Setting up environmental valiables ###
+##########################################
+
+$ cd ~/fabric-samples/first-network/
+$ export FABRIC_CFG_PATH=${PWD}
+$ export CHANNEL_NAME=mychannel
+
+
+###################################################
+### Generate certificates using cryptogen tool ####
+###            產生組織關係和身份證書           ###
+###################################################
+
+$ cryptogen generate \
+    --config=./crypto-config.yaml
+
+
+########################################
+### Generating Orderer Genesis block ###
+###     產生系統通道初始區塊文件     ###
+########################################
+
+$ mkdir channel-artifacts
+
+$ configtxgen \
+    -profile TwoOrgsOrdererGenesis \
+    -outputBlock ./channel-artifacts/genesis.block
+
+#################################################################
+### Generating channel configuration transaction 'channel.tx' ###
+###               產生新建應用通道的配置交易文件              ###
+#################################################################
+
+$ configtxgen \
+    -profile TwoOrgsChannel \
+    -outputCreateChannelTx ./channel-artifacts/channel.tx \
+    -channelID ${CHANNEL_NAME}
+
+	
+#################################################
+### Generating anchor peer update for Org1MSP ###
+###       產生Org1MSP錨節點配置更新文件       ###
+#################################################
+
+$ configtxgen \
+    -profile TwoOrgsChannel \
+    -outputAnchorPeersUpdate ./channel-artifacts/Org1MSPanchors.tx \
+    -channelID ${CHANNEL_NAME} \
+    -asOrg Org1MSP
+
+
+#################################################
+### Generating anchor peer update for Org2MSP ###
+###       產生Org2MSP錨節點配置更新文件       ###
+#################################################
+
+$ configtxgen \
+    -profile TwoOrgsChannel \
+    -outputAnchorPeersUpdate ./channel-artifacts/Org2MSPanchors.tx \
+    -channelID ${CHANNEL_NAME} \
+    -asOrg Org2MSP
+
+
+# 以下為 "./byfn.sh up" 的逐步執行
+# LOCAL_VERSION=1.3.0
+# DOCKER_IMAGE_VERSION=1.3.0
+# Channel name : mychannel
+
+#######################################
+### 啟動Orderer節點、Peer節點的容器 ###
+#######################################
+
+$ docker-compose -f docker-compose-cli.yaml up -d
+
+// The CLI container will stick around idle for 1000 seconds. If it’s gone when you need it you can restart it with a simple command:
+// $ docker start cli
+
+
+#####################################
+###  啟動CLI容器並在CLI中執行bash ###
+#####################################
+
+// 進入 chaincode container shell 後，由於預設 cols 的限制，會導致過長的指令產生後壓前無法跳行的情況，
+// 因此可加入 -c "stty cols 180 && bash" 來加以解決，其中180代表進入shell可輸入指令的長度。
+
+$ docker exec -it cli bash -c "stty cols 180 && bash"
+
+// 注意：以下的提示符號由"$"更改為"#"，代表已經進入Container的bash介面中
+
+// 使用下列指令將通道名稱指定為"mychannel"
+
+# export CHANNEL_NAME=mychannel
+
+
+###############################
+###     Creating channel    ###
+###       建立應用通道      ###
+###############################
+
+// 執行下列指令會在現行目錄下產生創世區塊<channel-ID.block>，也就是mychannel.block
+
+// 環境變數(10個)必須一起複製並執行
+
+CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt \
+CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.key \
+CORE_PEER_LOCALMSPID=Org1MSP \
+CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock \
+CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.crt \
+CORE_PEER_TLS_ENABLED=true \
+CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp \
+CORE_PEER_ID=cli \
+CORE_LOGGING_LEVEL=INFO \
+CORE_PEER_ADDRESS=peer0.org1.example.com:7051
+
+# peer channel create \
+    -o orderer.example.com:7050 \
+    -c ${CHANNEL_NAME} \
+    -f ./channel-artifacts/channel.tx \
+    --tls true \
+    --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem
+
+	
+#######################################################
+### 將下列應用通道中的組織成員加入通道"mychannel"中 ###
+### (1) peer0.org1.example.com                      ###
+### (2) peer1.org1.example.com                      ###
+### (3) peer0.org2.example.com                      ###
+### (4) peer1.org2.example.com                      ###
+#######################################################
+
+########################################
+### 將peer0.org1.example.com加入通道 ###
+########################################
+
+CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt \
+CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.key \
+CORE_PEER_LOCALMSPID=Org1MSP \
+CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock \
+CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.crt \
+CORE_PEER_TLS_ENABLED=true \
+CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp \
+CORE_PEER_ID=cli \
+CORE_LOGGING_LEVEL=INFO \
+CORE_PEER_ADDRESS=peer0.org1.example.com:7051
+
+# peer channel join -b mychannel.block
+
+
+########################################
+### 將peer1.org1.example.com加入通道 ###
+########################################
+
+CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer1.org1.example.com/tls/ca.crt \
+CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer1.org1.example.com/tls/server.key \
+CORE_PEER_LOCALMSPID=Org1MSP \
+CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock \
+CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer1.org1.example.com/tls/server.crt \
+CORE_PEER_TLS_ENABLED=true \
+CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp \
+CORE_PEER_ID=cli \
+CORE_LOGGING_LEVEL=INFO \
+CORE_PEER_ADDRESS=peer1.org1.example.com:7051
+
+# peer channel join -b mychannel.block
+
+
+########################################
+### 將peer0.org2.example.com加入通道 ###
+########################################
+
+CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt \
+CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/server.key \
+CORE_PEER_LOCALMSPID=Org2MSP \
+CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock \
+CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/server.crt \
+CORE_PEER_TLS_ENABLED=true \
+CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp \
+CORE_PEER_ID=cli \
+CORE_LOGGING_LEVEL=INFO \
+CORE_PEER_ADDRESS=peer0.org2.example.com:7051
+
+# peer channel join -b mychannel.block
+
+
+########################################
+### 將peer1.org2.example.com加入通道 ###
+########################################
+
+CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer1.org2.example.com/tls/ca.crt \
+CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer1.org2.example.com/tls/server.key \
+CORE_PEER_LOCALMSPID=Org2MSP \
+CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock \
+CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer1.org2.example.com/tls/server.crt \
+CORE_PEER_TLS_ENABLED=true \
+CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp \
+CORE_PEER_ID=cli \
+CORE_LOGGING_LEVEL=INFO \
+CORE_PEER_ADDRESS=peer1.org2.example.com:7051
+
+# peer channel join -b mychannel.block
+
+
+##############################################################
+### Updating anchor peers for org "Org1MSP" on "mychannel" ###
+###                更新Org1MSP的錨節點配置                 ###
+###     將peer0.org1.example.com指定為Org1MSP的錨節點      ###
+##############################################################
+
+CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt \
+CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.key \
+CORE_PEER_LOCALMSPID=Org1MSP \
+CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock \
+CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.crt \
+CORE_PEER_TLS_ENABLED=true \
+CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp \
+CORE_PEER_ID=cli \
+CORE_LOGGING_LEVEL=INFO \
+CORE_PEER_ADDRESS=peer0.org1.example.com:7051
+
+# peer channel update \
+    -o orderer.example.com:7050 \
+    -c ${CHANNEL_NAME} \
+    -f ./channel-artifacts/Org1MSPanchors.tx \
+    --tls true \
+    --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem
+
+
+##############################################################
+### Updating anchor peers for org "Org2MSP" on "mychannel" ###
+###                更新Org2MSP的錨節點配置                 ###
+###     將peer0.org2.example.com指定為Org2MSP的錨節點      ###
+##############################################################
+
+CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt \
+CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/server.key \
+CORE_PEER_LOCALMSPID=Org2MSP \
+CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock \
+CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/server.crt \
+CORE_PEER_TLS_ENABLED=true \
+CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp \
+CORE_PEER_ID=cli \
+CORE_LOGGING_LEVEL=INFO \
+CORE_PEER_ADDRESS=peer0.org2.example.com:7051
+
+# peer channel update \
+    -o orderer.example.com:7050 \
+    -c ${CHANNEL_NAME} \
+    -f ./channel-artifacts/Org2MSPanchors.tx \
+    --tls true \
+    --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem
+
+
+###############################################
+###             << 安裝鏈碼 >>              ###
+### 必須將鏈碼安裝到通道中的所有背書節點上  ###
+###############################################
+
+############################################
+### 將鏈碼安裝到 peer0.org1.example.com  ###
+############################################
+
+CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt \
+CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.key \
+CORE_PEER_LOCALMSPID=Org1MSP \
+CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock \
+CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.crt \
+CORE_PEER_TLS_ENABLED=true \
+CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp \
+CORE_PEER_ID=cli \
+CORE_LOGGING_LEVEL=INFO \
+CORE_PEER_ADDRESS=peer0.org1.example.com:7051
+
+# peer chaincode install \
+    -n mycc \
+    -v 1.0 \
+    -l golang \
+    -p github.com/chaincode/chaincode_example02/go/
+
+############################################
+### 將鏈碼安裝到 peer1.org1.example.com  ###
+############################################
+
+CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer1.org1.example.com/tls/ca.crt \
+CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer1.org1.example.com/tls/server.key \
+CORE_PEER_LOCALMSPID=Org1MSP \
+CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock \
+CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer1.org1.example.com/tls/server.crt \
+CORE_PEER_TLS_ENABLED=true \
+CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp \
+CORE_PEER_ID=cli \
+CORE_LOGGING_LEVEL=INFO \
+CORE_PEER_ADDRESS=peer1.org1.example.com:7051
+
+# peer chaincode install \
+    -n mycc \
+    -v 1.0 \
+    -l golang \
+    -p github.com/chaincode/chaincode_example02/go/
+
+	
+############################################
+### 將鏈碼安裝到 peer0.org2.example.com  ###
+############################################
+
+CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt \
+CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/server.key \
+CORE_PEER_LOCALMSPID=Org2MSP \
+CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock \
+CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/server.crt \
+CORE_PEER_TLS_ENABLED=true \
+CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp \
+CORE_PEER_ID=cli \
+CORE_LOGGING_LEVEL=INFO \
+CORE_PEER_ADDRESS=peer0.org2.example.com:7051
+
+# peer chaincode install \
+    -n mycc \
+    -v 1.0 \
+    -l golang \
+    -p github.com/chaincode/chaincode_example02/go/
+
+
+############################################
+### 將鏈碼安裝到 peer1.org2.example.com  ###
+############################################
+
+CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer1.org2.example.com/tls/ca.crt \
+CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer1.org2.example.com/tls/server.key \
+CORE_PEER_LOCALMSPID=Org2MSP \
+CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock \
+CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer1.org2.example.com/tls/server.crt \
+CORE_PEER_TLS_ENABLED=true \
+CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp \
+CORE_PEER_ID=cli \
+CORE_LOGGING_LEVEL=INFO \
+CORE_PEER_ADDRESS=peer1.org2.example.com:7051
+
+# peer chaincode install \
+    -n mycc \
+    -v 1.0 \
+    -l golang \
+    -p github.com/chaincode/chaincode_example02/go/
+
+
+#########################################################
+### Instantiating chaincode on peer0.org2.example.com ###
+###    在 peer0.org2.example.com 實例化/啟動鏈碼      ###
+#########################################################
+
+CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt \
+CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/server.key \
+CORE_PEER_LOCALMSPID=Org2MSP \
+CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock \
+CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/server.crt \
+CORE_PEER_TLS_ENABLED=true \
+CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp \
+CORE_PEER_ID=cli \
+CORE_LOGGING_LEVEL=INFO \
+CORE_PEER_ADDRESS=peer0.org2.example.com:7051
+
+// 執行以下指令後，需耐心等待一段較長的時間
+
+# peer chaincode instantiate \
+    -o orderer.example.com:7050 \
+    --tls true \
+    --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem \
+    -C ${CHANNEL_NAME} \
+    -n mycc \
+    -l golang \
+    -v 1.0 \
+    -c '{"Args":["init","a","100","b","200"]}' \
+    -P 'OR ('\''Org1MSP.peer'\'','\''Org2MSP.peer'\'')'
+
+
+#####################################################
+### Querying on peer0.org1 on channel 'mychannel' ###
+###          在peer0.org1查詢鏈碼調用結果         ###
+#####################################################
+
+CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt \
+CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.key \
+CORE_PEER_LOCALMSPID=Org1MSP \
+CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock \
+CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.crt \
+CORE_PEER_TLS_ENABLED=true \
+CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp \
+CORE_PEER_ID=cli \
+CORE_LOGGING_LEVEL=INFO \
+CORE_PEER_ADDRESS=peer0.org1.example.com:7051
+
+# peer chaincode query \
+    -C ${CHANNEL_NAME} \
+    -n mycc \
+    -c '{"Args":["query","a"]}'
+
+// 如果正確執行，會得到 Query Result: 100
+
+
+################################################
+### Sending invoke transaction on peer0.org1 ###
+###           在peer0.org1調用鏈碼           ###
+################################################
+
+CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt \
+CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.key \
+CORE_PEER_LOCALMSPID=Org1MSP \
+CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock \
+CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.crt \
+CORE_PEER_TLS_ENABLED=true \
+CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp \
+CORE_PEER_ID=cli \
+CORE_LOGGING_LEVEL=INFO \
+CORE_PEER_ADDRESS=peer0.org1.example.com:7051
+
+# peer chaincode invoke \
+    -o orderer.example.com:7050 \
+    --tls true \
+    --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem \
+    -C ${CHANNEL_NAME} \
+    -n mycc \
+    -c '{"Args":["invoke", "a", "b", "10"]}'
+
+
+########################################
+### Querying chaincode on peer1.org2 ###
+###   在peer1.org2查詢鏈碼調用結果   ###
+########################################
+
+CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer1.org2.example.com/tls/ca.crt \
+CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer1.org2.example.com/tls/server.key \
+CORE_PEER_LOCALMSPID=Org2MSP \
+CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock \
+CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer1.org2.example.com/tls/server.crt \
+CORE_PEER_TLS_ENABLED=true \
+CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp \
+CORE_PEER_ID=cli \
+CORE_LOGGING_LEVEL=INFO \
+CORE_PEER_ADDRESS=peer1.org2.example.com:7051
+
+# peer chaincode query \
+    -C ${CHANNEL_NAME} \
+    -n mycc \
+    -c '{"Args":["query","a"]}'
+
+// 如果正確執行，會得到 Query Result: 90
+
+# peer chaincode query \
+    -C ${CHANNEL_NAME} \
+    -n mycc \
+    -c '{"Args":["query","b"]}'
+
+// 如果正確執行，會得到 Query Result: 210
+
+
+###########################
+###       結束CLI       ###
+###########################
+
+// 輸入下列指令離開CLI容器
+
+# exit 
+
+// 以下提示符號由"#"更改為"$"
+
+
+#####################################################################
+### Clean up the network:                                         ###
+###     remove artifacts, crypto, containers and chaincode images ###
+###                       清除網路資相關資源                      ###
+#####################################################################
+
+$ ./byfn.sh down
+

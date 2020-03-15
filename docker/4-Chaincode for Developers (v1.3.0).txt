@@ -1,0 +1,87 @@
+# VERSION: Hyperledger Fabric v1.3.0
+# Chaincode for Developers
+# http://hyperledger-fabric.readthedocs.io/en/latest/chaincode4ade.html
+
+#####################################################################################
+### 本區塊無須執行，要從「開啟第一個終端機」開始執行                              ###
+### $ mkdir -p $GOPATH/src/sacc && cd $GOPATH/src/sacc                            ###
+### $ go get -u --tags nopkcs11 github.com/hyperledger/fabric/core/chaincode/shim ###
+### $ go get -u --tags nopkcs11 github.com/hyperledger/fabric/protos/peer         ###
+### $ touch sacc.go                                                               ###
+### // Write your chaincode...                                                    ###
+### $ go build --tags nopkcs11                                                    ###
+#####################################################################################
+
+
+
+###########################
+### 1. 開啟第一個終端機 ###
+###########################
+
+$ cd ~/fabric-samples/chaincode-docker-devmode
+
+$ docker-compose -f docker-compose-simple.yaml up
+
+
+###########################
+### 2. 開啟第二個終端機 ###
+###########################
+
+$ cd ~/fabric-samples/chaincode-docker-devmode
+
+// 進入 chaincode container shell 後，由於預設 cols 的限制，會導致過長的指令產生後壓前無法跳行的情況，
+// 因此可加入 -c "stty cols 180 && bash" 來加以解決，其中180代表進入shell可輸入指令的長度。
+
+$ docker exec -it chaincode bash -c "stty cols 180 && bash"
+
+
+// 以下提示符號由"$"更改為"#"
+
+# cd sacc
+
+# go build
+
+// run the chaincode
+
+# CORE_PEER_ADDRESS=peer:7052 CORE_CHAINCODE_ID_NAME=mycc:0 ./sacc
+
+
+###########################
+### 3. 開啟第三個終端機 ###
+###########################
+
+$ cd ~/fabric-samples/chaincode-docker-devmode
+
+// 進入 cli container shell 後，由於預設 cols 的限制，會導致過長的指令產生後壓前無法跳行的情況，
+// 因此可加入 -c "stty cols 180 && bash" 來加以解決，其中180代表進入shell可輸入指令的長度。
+
+$ docker exec -it cli bash -c "stty cols 180 && bash"
+
+// 以下提示符號由"$"更改為"#"
+
+# peer chaincode install -p chaincodedev/chaincode/sacc -n mycc -v 0
+
+# peer chaincode instantiate -n mycc -v 0 -c '{"Args":["a", "10"]}' -C myc
+
+# peer chaincode query -n mycc -c '{"Args":["query", "a"]}' -C myc
+
+# peer chaincode invoke -n mycc -c '{"Args":["set", "a", "20"]}' -C myc
+
+# peer chaincode query -n mycc -c '{"Args":["query", "a"]}' -C myc
+
+
+// 結束後離開
+
+// 第三個終端機
+# exit
+
+// 第二個終端機
+Ctrl+C
+# exit
+
+// 第一個終端機
+Ctrl+C
+
+// 結束後可使用下列指令刪除container、chaincode images
+
+$ docker-compose -f docker-compose-simple.yaml down

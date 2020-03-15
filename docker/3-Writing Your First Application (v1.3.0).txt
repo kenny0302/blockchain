@@ -1,0 +1,136 @@
+# VERSION: Hyperledger Fabric v1.3.0
+# Writing Your First Application
+# https://github.com/hyperledger/fabric/blob/master/docs/source/write_first_app.rst
+
+
+// 清除前次操作 data
+// 本區塊的指令可視實際需要執行
+###############################################
+$ cd ~/fabric-samples/fabcar
+$ rm  -rf ./hfc-key-store/*
+$ rm -rf node_modules
+$ docker rm -f $(docker ps -a -q)
+$ docker rmi -f $(docker images -a -q dev*)
+$ docker network prune
+$ docker volume prune
+###############################################
+
+
+$ cd ~/fabric-samples/fabcar
+
+$ ls -l
+   // 內容如下：
+   enrollAdmin.js    invoke.js       package.json    query.js      registerUser.js    startFabric.sh
+   
+$ ls -l ../basic-network/config/ 
+   // 內容如下：(已事先建立)
+   channel.tx     genesis.block   
+
+$ npm install
+
+// Use ./startFabric.sh to launch the network
+// Spin up our various Fabric entities and launch a smart contract container for chaincode written in Golang
+
+$ ./startFabric.sh
+
+// To stream your CA logs, split your terminal or open a new shell and issue the following:
+// 開啟第二個終端機並執行下列指令
+
+$ docker logs -f ca.example.com
+
+// 回到第一個終端機
+// Send the admin enroll call to the CA server:
+
+$ node enrollAdmin.js
+
+// Send the register and enroll calls for user1:
+
+$ node registerUser.js
+
+//(查詢所有車款)
+
+$ node query.js
+
+//(詢問指定車款:更新 Line 57, 58)
+
+$ vi query.js  
+       57         fcn: 'queryCar',
+       58         args: ['CAR4']
+ 
+$ node query.js
+    // Response is  {"colour":"black","make":"Tesla","model":"S","owner":"Adriana"}
+
+//(新增汽車:更新 Line 64, 65)
+
+$ vi invoke.js   
+       64         fcn: 'createCar',
+       65         args: ['CAR10', 'Chevy', 'Volt', 'Red', 'Nick'],
+
+$ node invoke.js
+	   
+   //Successfully sent transaction to the orderer.
+   //Successfully committed the change to the ledger by the peer
+
+//(顯示 CAR10)
+
+$ vi query.js  
+       57         fcn: 'queryCar',
+       58         args: ['CAR10']
+
+$ node query.js
+   //Response is  {"colour":"Red","make":"Chevy","model":"Volt","owner":"Nick"} 
+
+//(變更汽車擁有者: Line 64, 65)
+
+$ vi invoke.js    
+        64         fcn: 'changeCarOwner',
+        65         args: ['CAR10', 'Barry'],
+
+$ node invoke.js
+   //Successfully sent transaction to the orderer.
+   //Successfully committed the change to the ledger by the peer
+
+$ node query.js    (CAR10 owner 由 Nick->Barry)
+   //Response is  {"colour":"Red","make":"Chevy","model":"Volt","owner":"Barry"}
+
+
+//檢視 channel.tx  genesis.block
+
+$ cd ~/fabric-samples/basic-network
+
+$ export FABRIC_CFG_PATH=$PWD
+
+$ configtxgen -profile OneOrgOrdererGenesis -inspectBlock config/genesis.block
+
+$ configtxgen -profile OneOrgChannel -inspectChannelCreateTx config/channel.tx
+
+
+#########################
+### 清除前次操作 data ###
+#########################
+
+#########################
+### 清除certs & keys  ###
+#########################
+$ cd ~/fabric-samples/fabcar
+$ rm  -rf ./hfc-key-store/*
+
+#########################
+###  清除 container   ###
+#########################
+$ docker rm -f $(docker ps -a -q)
+
+#########################
+###    清除 images    ###
+#########################
+$ docker rmi -f $(docker images -a -q dev*)
+
+#########################
+###    清除 network   ###
+#########################
+$ docker network prune
+
+#########################
+###    清除 volume    ###
+#########################
+$ docker volume prune

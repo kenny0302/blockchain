@@ -1,0 +1,174 @@
+# VERSION: Hyperledger Fabric v1.3.0
+# Setting Up the Development Environment
+
+###########################################
+###  1. Enable SSH in Ubuntu 18.04 LTS  ###
+###########################################
+
+// 若為第一次執行下列指令，需要在Ubuntu的terminal中執行指令
+$ sudo apt-get update
+$ sudo apt-get upgrade
+$ sudo apt-get install openssh-server
+#$ sudo service ssh status
+#$ sudo service ssh restart
+
+
+###########################################
+###             2. 安裝cURL             ###
+###########################################
+
+$ sudo apt-get update
+$ sudo apt-get upgrade
+$ sudo apt-get install curl
+
+
+###########################################
+###          3. 安裝Docker服務          ###
+###########################################
+
+// 若曾安裝過docker，可以用下列指令移除(注意：此舉會將已下載的images一併刪除)
+#$ sudo apt-get remove docker docker-engine docker.io
+$ sudo apt-get purge docker-ce
+$ sudo rm -rf /var/lib/docker
+$ sudo apt autoremove
+
+// 安裝Docker服務(注意：Docker只能安裝並執行在64位元的電腦上)
+
+$ curl -fsSL https://get.docker.com/ | sh
+
+$ sudo vi /etc/default/docker
+    // 加入下列啟動參數
+DOCKER_OPTS="$DOCKER_OPTS -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock --api-cors-header='*'"
+
+$ sudo service docker restart
+$ sudo usermod -aG docker ${USER}
+$ sudo login
+
+
+###########################################
+###          4. 安裝python-pip          ###
+###########################################
+
+$ sudo apt-get install python-pip
+$ sudo -H pip install --upgrade pip
+
+
+###########################################
+###        5. 安裝docker-compose        ###
+###########################################
+// Docker Compose version 1.14.0 or greater is required
+
+// 若曾安裝過docker-compose，可以用下列指令移除
+
+$ sudo -H pip uninstall docker-compose
+
+// 安裝docker-compose
+
+$ sudo -H pip install docker-compose
+$ sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+
+
+###########################################
+###          6. 安裝Go語言環境          ###
+###########################################
+// Go version 1.10.x is required.
+// Building with Go version 1.8.x is not supported
+
+$ cd ~
+$ sudo rm -rf /usr/lib/go
+
+// VERSION: 1.11.0
+$ wget https://dl.google.com/go/go1.11.linux-amd64.tar.gz
+$ tar zxvf go1.11.linux-amd64.tar.gz
+
+$ sudo mv go /usr/lib/go/
+$ mkdir $HOME/go
+
+$ export GOROOT=/usr/lib/go
+$ export GOPATH=${HOME}/go
+$ export GOBIN=${HOME}/go/bin
+$ export PATH=${GOROOT}/bin:${PATH}
+$ export PATH=${GOPATH}/bin:${PATH}
+
+$ sudo apt-get update
+$ sudo apt-get upgrade
+
+$ sudo apt-get install -y cpp gccgo build-essential libssl-dev libsnappy-dev zlib1g-dev libbz2-dev libltdl-dev libtool
+
+
+###########################################
+###  7. 安裝 NVM (Node Version Manager) ###
+###########################################
+
+$ curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
+$ source ~/.profile
+
+
+###########################################
+###     8. 安裝Node.js Runtime與NPM     ###
+###########################################
+// Node.js version 9.x is not supported at this time. 
+// Node.js version 8.9.x or greater is required.
+
+$ nvm install v8.12.0
+$ npm install npm@latest -g
+$ npm install -g gulp
+$ nvm use v8.12.0
+$ sudo apt-get install python
+$ python --version
+
+
+#################################################
+###                9. 安裝git                 ###
+################################################# 
+
+$ sudo apt install git
+
+
+###############################################################
+### 10. 下載 Hyperledger Fabric platform-specific binary    ###
+###     包含 Hyperledger Faric 範例                         ###
+###     安裝路徑：                                          ###
+###        ~/fabric-samples                                 ###
+###        ~/fabric-samples/bin                             ###
+###############################################################
+
+$ cd ~
+
+// 若曾安裝過Hyperledger Fabric，可以用下列指令移除
+
+$ sudo rm -rf fabric-binary
+$ sudo rm -rf fabric-samples
+$ docker rmi -f $(docker images -a -q hyperledger/fabric*)
+
+// 安裝Hyperledger Fabric (包含範例)：大約需要30至40分鐘
+// 安裝在fabric-samples目錄中
+
+$ curl -sSL http://bit.ly/2ysbOFE | bash -s 1.3.0
+
+$ mkdir fabric-binary
+$ sudo mv ~/fabric-samples/bin ~/fabric-binary/bin
+$ export PATH=${HOME}/fabric-binray/bin:${PATH}
+
+// 以git branch確認是在master分支
+$ cd fabric-samples && git checkout master
+$ git branch
+
+
+############################################
+###   11. 個人環境變數設定檔 ~/.bashrc   ###
+############################################
+
+$ vi ~/.bashrc
+
+// 加入下列7行環境變數及設定敘述
+	
+export GOROOT=/usr/lib/go
+export GOPATH=$HOME/go
+export GOBIN=$HOME/go/bin
+export PATH=$GOROOT/bin:$PATH
+export PATH=$GOPATH/bin:$PATH 
+export PATH=$HOME/fabric-binary/bin:$PATH
+nvm use v8.12.0
+
+$ source ~/.bashrc

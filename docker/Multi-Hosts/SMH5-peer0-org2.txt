@@ -1,0 +1,148 @@
+﻿####################################################################
+###                SOLO多主機部署網路結構                        ###
+###  management-node:120.125.83.48        (hsu01/data@s204-im)   ###
+###  orderer.example.com:120.125.83.48    (hsu01/data@s204-im)   ###
+###  peer0.org1.example.com:120.125.83.56 (hsu02/data@s204-im)   ###
+###  peer1.org1.example.com:120.125.82.1  (mike2/mike@s201-1)    ###
+###  peer0.org2.example.com:120.125.83.43 (hsu03/data@s204-im)   ###
+###  peer1.org2.example.com:120.125.82.6  (chiu/chiu@s201-1)     ###
+####################################################################
+
+// Node: peer0.org2.example.com:120.125.83.43
+// VERSION: Hyperledger Fabric v1.3.0
+// Channel name: mychannel
+// Chaincode: ~/fabric-samples/chaincode/chaincode_example02
+// CouchDB: v0.4.13
+
+
+#############################################################
+### <<<結束區塊鏈網路或清除前次操作資料請使用下列指令>>> ####
+### 清除前次操作的containers, images, networks, volumes  ####
+#############################################################
+
+$ docker rm -f $(docker ps -a -q)
+$ docker rmi -f $(docker images -a -q dev*)
+$ docker network prune
+$ docker volume prune
+
+
+###############################################
+### Compiling the docker-compose yaml file  ###
+### 編寫docker-compose的yaml檔案            ###
+###############################################
+
+// 以下工作已於管理節點處理完畢，在此不必做任何處理：
+// 在dltlab目錄中建立docker-peer0-org2.yaml
+// 將ca.example.com區段的"FABRIC_CA_SERVER_TLS_KEYFILE"的值更改成由cryptogen產生的證書文件名稱(使用環境變數CA_KEYFILE設定)
+// 將ca.example.com區段的command的參數"--ca.certfile"的值更改成由cryptogen產生的證書文件名稱(使用環境變數CA_KEYFILE設定)
+// 證書文件名稱可以從下列資料夾找到 "/home/${USER}/fabric-proj/dltlab/crypto-config/peerOrganizations/org2.example.com/ca"。
+// CouchDB使用0.4.13版本
+// 將 docker-peer0-org2.yaml 複製到 ~/fabric-proj/dltlab/
+
+
+##########################################
+### Setting up environmental valiables ###
+### 設置環境變數                       ###
+##########################################
+
+$ cd ~/fabric-proj/dltlab/
+$ export FABRIC_CFG_PATH=${PWD}
+$ export CHANNEL_NAME=mychannel
+$ export CA_KEYFILE=$(basename $(ls ~/fabric-proj/dltlab/crypto-config/peerOrganizations/org2.example.com/ca/*_sk))
+$ echo ${CA_KEYFILE}
+
+
+#####################################
+###       啟動Peer節點的容器      ###    
+###  啟動CLI容器並在CLI中執行bash ###
+#####################################
+
+$ docker-compose -f docker-peer0-org2.yaml up -d
+
+// 確認四個容器已啟動：couchdb, ca.example.com, peer1.org2.example.com, cli
+
+$ docker ps
+
+// 讀取cli容器代號並儲存於CLI_ID變數之中
+
+$ export CLI_ID=$(docker inspect cli --format='{{.Id}}')
+
+// 查看cli容器代號，例如：4472e8128cbe9159e5b0443154290037c99fb7b057f63a9565469bc0e2db7820  (以實際查詢結果為主，這只是個範例)
+
+$ echo ${CLI_ID}
+
+// 將實體主機的 mychannel.block 複製到 cli 容器中
+
+$ docker cp \
+	~/fabric-proj/dltlab/channel-artifacts/mychannel.block \
+	${CLI_ID}:/opt/gopath/src/github.com/hyperledger/fabric/peer/
+	
+$ docker exec -it cli bash -c "stty cols 180 && bash"
+
+// 注意：以下的提示符號由"$"更改為"#"，代表已經進入Container的bash介面中
+
+// 查看是否有mychannel.block
+
+# ls
+
+// 使用下列指令將通道名稱指定為"mychannel"
+
+# export CHANNEL_NAME=mychannel
+
+
+#######################################################
+### 將下列應用通道中的組織成員加入通道"mychannel"中 ###
+###     peer0.org2.example.com                      ###
+#######################################################
+
+# peer channel join -b mychannel.block
+
+
+##############################################################
+### Updating anchor peers for org "Org2MSP" on "mychannel" ###
+###                更新Org2MSP的錨節點配置                 ###
+###     將peer0.org2.example.com指定為Org2MSP的錨節點      ###
+##############################################################
+
+# peer channel update \
+    -o orderer.example.com:7050 \
+    -c ${CHANNEL_NAME} \
+    -f ./channel-artifacts/Org2MSPanchors.tx
+
+	
+############################################
+### 將鏈碼安裝到 peer0.org2.example.com  ###
+############################################
+
+# peer chaincode install \
+    -n mycc \
+    -v 1.0 \
+    -l golang \
+    -p github.com/chaincode/ticket/go/
+
+	
+#####################################################
+### Querying on peer0.org2 on channel 'mychannel' ###
+###          在peer0.org2查詢鏈碼調用結果         ###
+#####################################################
+
+# peer chaincode query \
+    -C ${CHANNEL_NAME} \
+    -n mycc \
+    -c '{"Args":["queryTicket", "1"]}'
+
+// 如果正確執行，會得到 Query Result: Ticket does not exist
+
+
+
+// 離開cli容器
+
+# exit
+
+
+#######################################
+###   下一步：啟動peer節點          ###
+#######################################
+
+// (1) 使用PuTTY連線至"peer1.org2.example.com:120.125.82.6 (chiu/chiu@s201-1)"
+// (2) 根據 SMH6-peer1-org2.txt 的步驟完成peer節點的啟動

@@ -1,0 +1,150 @@
+####################################################################
+###                SOLO多主機部署網路結構                        ###
+###  management-node:120.125.83.48        (hsu01/data@s204-im)   ###
+###  orderer.example.com:120.125.83.48    (hsu01/data@s204-im)   ###
+###  peer0.org1.example.com:120.125.83.56 (hsu02/data@s204-im)   ###
+###  peer1.org1.example.com:120.125.82.1  (mike2/mike@s201-1)    ###
+###  peer0.org2.example.com:120.125.83.43 (hsu03/data@s204-im)   ###
+###  peer1.org2.example.com:120.125.82.6  (chiu/chiu@s201-1)     ###
+####################################################################
+
+// Node: management-node:120.125.83.48
+// VERSION: Hyperledger Fabric v1.3.0
+// Channel name: mychannel
+// Chaincode: ~/fabric-samples/chaincode/chaincode_example02
+// CouchDB: v0.4.13
+
+
+#############################
+###   連線進入管理節點    ###
+#############################
+
+// (1) 使用PuTTY連線至"management-node:120.125.83.48 (hsu01/data@s204-im)"
+// (2) 根據下列步驟完成區塊鏈網路相關配置文件之準備
+
+
+################################
+###     準備相關配置文件     ###
+################################
+
+// 1. 在管理節點的主機建立專案資料夾 ~/fabric-proj/dltlab  (我是使用orderer節點這一台作為管理節點)
+// 2. 將下列兩個區塊鏈網路結構設定檔複製到 ~/fabric-proj/dltlab/
+//    (1) ~/fabric-samples/first-network/configtx.yaml
+//    (2) ~/fabric-samples/first-network/crypto-config.yaml
+// 3. 將chaincode範例複製到 ~/fabric-proj/dltlab/chaincode
+
+$ mkdir -p ~/fabric-proj/dltlab/chaincode
+$ cp ~/fabric-samples/first-network/configtx.yaml ~/fabric-proj/dltlab
+$ cp ~/fabric-samples/first-network/crypto-config.yaml ~/fabric-proj/dltlab
+$ cp -rf ~/fabric-samples/chaincode/chaincode_example02 ~/fabric-proj/dltlab/chaincode
+
+
+##########################################
+### Setting up environmental valiables ###
+### 設置環境變數                       ###
+##########################################
+
+$ cd ~/fabric-proj/dltlab/
+$ export FABRIC_CFG_PATH=${PWD}
+$ export CHANNEL_NAME=mychannel
+
+
+###################################################
+### Generate certificates using cryptogen tool ####
+###            產生組織關係和身份證書           ###
+###################################################
+
+$ cryptogen generate \
+    --config=./crypto-config.yaml
+
+
+########################################
+### Generating Orderer Genesis block ###
+###     產生系統通道初始區塊文件     ###
+########################################
+
+$ mkdir channel-artifacts
+
+$ configtxgen \
+    -profile TwoOrgsOrdererGenesis \
+    -outputBlock ./channel-artifacts/genesis.block
+
+###################################################################
+### Generating channel configuration transaction 'mychannel.tx' ###
+###       產生新建應用通道的配置交易文件'mychannel.tx'          ###
+###################################################################
+
+$ configtxgen \
+    -profile TwoOrgsChannel \
+    -outputCreateChannelTx ./channel-artifacts/mychannel.tx \
+    -channelID ${CHANNEL_NAME}
+
+	
+#################################################
+### Generating anchor peer update for Org1MSP ###
+###       產生Org1MSP錨節點配置更新文件       ###
+#################################################
+
+$ configtxgen \
+    -profile TwoOrgsChannel \
+    -outputAnchorPeersUpdate ./channel-artifacts/Org1MSPanchors.tx \
+    -channelID ${CHANNEL_NAME} \
+    -asOrg Org1MSP
+
+
+#################################################
+### Generating anchor peer update for Org2MSP ###
+###       產生Org2MSP錨節點配置更新文件       ###
+#################################################
+
+$ configtxgen \
+    -profile TwoOrgsChannel \
+    -outputAnchorPeersUpdate ./channel-artifacts/Org2MSPanchors.tx \
+    -channelID ${CHANNEL_NAME} \
+    -asOrg Org2MSP
+
+
+################################################
+###   建立啟動網路的docker-compose的yaml檔   ###
+################################################
+
+// 在~/fabric-proj/dltlab/中建立啟動區塊鏈網路的docker-compose之yaml檔
+// 下列的這些檔案已預先編寫好，只要將它們放置於此目錄中即可(建議使用WinSCP來操作)
+// (1) docker-orderer.yaml
+// (2) docker-peer0-org1.yaml
+// (3) docker-peer1-org1.yaml
+// (4) docker-peer0-org2.yaml
+// (5) docker-peer1-org2.yaml
+
+// 上列yaml檔案的建置注意事項：
+// (1) 在dltlab目錄中建立docker-peer0-org1.yaml
+// (2) 將ca.example.com區段的"FABRIC_CA_SERVER_TLS_KEYFILE"的值更改成由cryptogen產生的證書文件名稱(使用環境變數CA_KEYFILE設定)
+// (3) 將ca.example.com區段的command的參數"--ca.certfile"的值更改成由cryptogen產生的證書文件名稱(使用環境變數CA_KEYFILE設定)
+// (4) Org1的證書文件名稱可以從下列資料夾找到 "/home/${USER}/fabric-proj/dltlab/crypto-config/peerOrganizations/org1.example.com/ca"。
+// (5) Org2的證書文件名稱可以從下列資料夾找到 "/home/${USER}/fabric-proj/dltlab/crypto-config/peerOrganizations/org2.example.com/ca"。
+// (6) CouchDB使用0.4.10版本
+
+
+########################################
+###         複製相關配置文件         ###
+########################################
+
+// 將管理節點上的~/fabric-proj目錄複製到每台主機的 ~/fabric-proj/dltlab/
+
+$ scp -r ~/fabric-proj hsu01@120.125.83.48:/home/hsu01/   (如果以orderer這個節點當作管理節點，則此行指令不必執行)
+
+$ scp -r ~/fabric-proj hsu02@120.125.83.56:/home/hsu02/
+
+$ scp -r ~/fabric-proj hsu04@120.125.83.43:/home/hsu04/
+
+$ scp -r ~/fabric-proj mike2@120.125.82.1:/home/mike2/
+
+$ scp -r ~/fabric-proj chiu@120.125.82.6:/home/chiu/
+
+
+#######################################
+###   下一步：啟動排序節點          ###
+#######################################
+
+// (1) 使用PuTTY連線至"orderer.example.com:120.125.83.48 (hsu01/data@s204-im)"
+// (2) 根據 SMH2-orderer.txt 的步驟完成排序節點的啟動

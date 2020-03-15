@@ -1,0 +1,13 @@
+# VERSION: Hyperledger Fabric v1.3.0
+# Building Your First Network
+# https://github.com/hyperledger/fabric/blob/master/docs/source/build_network.rst
+
+
+################################
+###  以批次方式執行網路建立  ###
+################################
+
+$ cd ~/fabric-samples/first-network/
+$ ./byfn.sh generate
+$ ./byfn.sh up
+$ ./byfn.sh down
